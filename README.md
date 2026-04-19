@@ -1,6 +1,6 @@
 # GoodbyeDPI Manager
 
-Lightweight Windows GUI for managing the GoodbyeDPI background service. This application provides an intuitive way to start/stop/restart/configure GoodbyeDPI without needing to interact with the command line after it was installed om your computer. Visit [this link](github.com/ValdikSS/GoodbyeDPI) for GoodbyeDPI service source code and installation instructions. If you are from Turkiye and the combination of your ISP + GoodbyeDPI are acting funny, you can visit [this link](github.com/cagritaskn/GoodbyeDPI-Turkey) for the version of GoodbyeDPI altered for Turkish users. 
+Lightweight Windows GUI for managing the GoodbyeDPI background service. This application provides an intuitive way to start/stop/restart/configure GoodbyeDPI without needing to interact with the command line after it was installed om your computer. Visit [this link](https://github.com/ValdikSS/GoodbyeDPI) for GoodbyeDPI service source code and installation instructions. If you are from Turkiye and the combination of your ISP + GoodbyeDPI are acting funny, you can visit [this link](https://github.com/cagritaskn/GoodbyeDPI-Turkey) for the version of GoodbyeDPI altered for Turkish users. 
 
 ## Features
 

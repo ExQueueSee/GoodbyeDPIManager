@@ -3,7 +3,7 @@ using System.Windows;
 
 namespace GoodbyeDPIManager
 {
-    public partial class App : Application
+    public partial class App : System.Windows.Application
     {
         [DllImport("shell32.dll", SetLastError = true)]
         static extern void SetCurrentProcessExplicitAppUserModelID([MarshalAs(UnmanagedType.LPWStr)] string AppID);

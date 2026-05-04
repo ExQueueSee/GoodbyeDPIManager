@@ -13,18 +13,18 @@
         <Grid x:Name="MainView" Margin="0,35,0,0" Visibility="Visible">
             <ui:Button Icon="{ui:SymbolIcon Settings24}" Appearance="Transparent" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,10,0,0" Click="OpenSettings_Click"/>
 
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-20,0,0">
+            <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="10,-20,10,0">
                 <TextBlock Text="Service Status" FontSize="14" Foreground="#B0B0B0" HorizontalAlignment="Center" Margin="0,0,0,5"/>
 
-                <Border x:Name="StatusBorder" Background="#334CAF50" CornerRadius="8" Padding="15,5" HorizontalAlignment="Center" Margin="0,0,0,30">
-                    <TextBlock x:Name="StatusText" Text="CHECKING..." Foreground="#4CAF50" FontSize="24" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                <Border x:Name="StatusBorder" Background="#334CAF50" CornerRadius="8" Padding="25,5" HorizontalAlignment="Center" Margin="0,0,0,30">
+                    <TextBlock x:Name="StatusText" Text="CHECKING..." Foreground="#4CAF50" FontSize="24" FontWeight="SemiBold" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
                 </Border>
 
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <ui:Button Content="Start" Icon="{ui:SymbolIcon Play24}" Appearance="Success" Width="100" Margin="5" Click="Start_Click"/>
-                    <ui:Button Content="Stop" Icon="{ui:SymbolIcon Stop24}" Appearance="Danger" Width="100" Margin="5" Click="Stop_Click"/>
-                    <ui:Button Content="Restart" Icon="{ui:SymbolIcon ArrowClockwise24}" Appearance="Primary" Width="100" Margin="5" Click="Restart_Click"/>
-                </StackPanel>
+                <WrapPanel HorizontalAlignment="Center" Margin="0,0,0,10">
+                    <ui:Button Content="Start" Icon="{ui:SymbolIcon Play24}" Appearance="Success" MinWidth="100" Padding="15,6" Margin="5" Click="Start_Click"/>
+                    <ui:Button Content="Stop" Icon="{ui:SymbolIcon Stop24}" Appearance="Danger" MinWidth="100" Padding="15,6" Margin="5" Click="Stop_Click"/>
+                    <ui:Button Content="Restart" Icon="{ui:SymbolIcon ArrowClockwise24}" Appearance="Primary" MinWidth="100" Padding="15,6" Margin="5" Click="Restart_Click"/>
+                </WrapPanel>
             </StackPanel>
         </Grid>
 

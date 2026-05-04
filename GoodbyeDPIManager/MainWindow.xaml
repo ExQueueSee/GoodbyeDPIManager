@@ -31,10 +31,15 @@
         <Grid x:Name="SettingsView" Margin="0,35,0,0" Visibility="Collapsed">
             <ui:Button Icon="{ui:SymbolIcon ArrowLeft24}" Appearance="Transparent" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,10,0,0" Click="CloseSettings_Click"/>
 
-            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Margin="60,12,20,0">
+
+            <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="60,12,20,0">
                 <TextBlock Text="Settings" FontSize="22" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,25"/>
 
-                <CheckBox x:Name="StartupCheckBox" Content="Open app automatically at Windows startup (Bypasses UAC)" Click="Settings_Changed" Margin="0,0,0,15" Foreground="#B0B0B0"/>
+
+                <CheckBox x:Name="StartupCheckBox" Click="Settings_Changed" Margin="0,0,0,15" Foreground="#B0B0B0" VerticalContentAlignment="Center">
+                    <TextBlock Text="Open app automatically at Windows startup (Bypasses UAC)" TextWrapping="Wrap" />
+                </CheckBox>
+
                 <CheckBox x:Name="StartServiceCheckBox" Content="Start GoodbyeDPI when this app opens" Click="Settings_Changed" Margin="0,0,0,15" Foreground="#B0B0B0"/>
                 <CheckBox x:Name="BackgroundCheckBox" Content="Minimize to tray when closed" Click="Settings_Changed" Foreground="#B0B0B0"/>
             </StackPanel>

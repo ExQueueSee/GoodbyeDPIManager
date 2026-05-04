@@ -5,7 +5,9 @@
         Title="GoodbyeDPI Manager" Height="350" Width="450" 
         WindowStartupLocation="CenterScreen"
         ExtendsContentIntoTitleBar="True"
-        WindowBackdropType="Mica">
+        WindowBackdropType="Mica"
+        Icon="appicon.ico">
+        
 
     <Grid>
         <ui:TitleBar Title="GoodbyeDPI Manager" Panel.ZIndex="1" />

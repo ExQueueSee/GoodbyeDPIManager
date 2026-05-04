@@ -183,7 +183,46 @@ namespace GoodbyeDPIManager
 
         private void Start_Click(object sender, RoutedEventArgs e) => ExecuteServiceCommand(ServiceControllerStatus.Running);
         private void Stop_Click(object sender, RoutedEventArgs e) => ExecuteServiceCommand(ServiceControllerStatus.Stopped);
-        private void Restart_Click(object sender, RoutedEventArgs e) { ExecuteServiceCommand(ServiceControllerStatus.Stopped); ExecuteServiceCommand(ServiceControllerStatus.Running); }
+        private async void Restart_Click(object sender, RoutedEventArgs e)
+        {
+            // Cast sender to WPF-UI Button so we can manipulate its properties
+            var btn = sender as Wpf.Ui.Controls.Button;
+            string originalText = btn?.Content?.ToString() ?? "Restart";
+
+            try
+            {
+                
+                this.IsEnabled = false; // disable window to prevent interactions during restart
+
+                if (btn != null)
+                {
+                    btn.Content = "Restarting...";
+                    btn.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Clock24 };
+                }
+
+                ExecuteServiceCommand(ServiceControllerStatus.Stopped);
+
+                // aysnc delay
+                await System.Threading.Tasks.Task.Delay(2000);
+
+                ExecuteServiceCommand(ServiceControllerStatus.Running);
+            }
+            finally
+            {
+                // restore UI
+                if (btn != null)
+                {
+                    btn.Content = originalText;
+                    // restore loading icon
+                    btn.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.ArrowClockwise24 };
+                }
+
+                this.IsEnabled = true;
+
+                
+                UpdateStatus(); // status check because I don't trust myself
+            }
+        }
 
         private void ExecuteServiceCommand(ServiceControllerStatus targetStatus)
         {

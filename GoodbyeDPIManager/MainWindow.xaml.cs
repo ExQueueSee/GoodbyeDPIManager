@@ -109,6 +109,7 @@ namespace GoodbyeDPIManager
             bool startupEnabled = StartupCheckBox.IsChecked == true;
 
             HideOnStartupCheckBox.IsEnabled = startupEnabled;
+            HideOnStartupContainer.Opacity = startupEnabled ? 1.0 : 0.45;
 
             if (!startupEnabled)
             {

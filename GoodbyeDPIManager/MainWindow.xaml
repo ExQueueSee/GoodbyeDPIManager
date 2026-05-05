@@ -42,6 +42,10 @@
                     <TextBlock Text="Open app automatically at Windows startup (Bypasses UAC)" TextWrapping="Wrap" />
                 </CheckBox>
 
+                <CheckBox x:Name="HideOnStartupCheckBox" Click="Settings_Changed" Margin="20,0,0,15" Foreground="#B0B0B0" VerticalContentAlignment="Center">
+                    <TextBlock Text="Start hidden in tray at Windows startup" TextWrapping="Wrap" />
+                </CheckBox>
+
                 <CheckBox x:Name="StartServiceCheckBox" Content="Start GoodbyeDPI when this app opens" Click="Settings_Changed" Margin="0,0,0,15" Foreground="#B0B0B0"/>
                 <CheckBox x:Name="BackgroundCheckBox" Content="Minimize to tray when closed" Click="Settings_Changed" Foreground="#B0B0B0"/>
             </StackPanel>

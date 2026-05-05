@@ -92,35 +92,60 @@ namespace GoodbyeDPIManager
         private void LoadSettings()
         {
             int runAtStartup = (int)(Registry.GetValue(registryPath, "RunAtStartup", 0) ?? 0);
+            int hideOnStartup = (int)(Registry.GetValue(registryPath, "HideOnStartup", 0) ?? 0);
             int startOnLaunch = (int)(Registry.GetValue(registryPath, "StartOnLaunch", 0) ?? 0);
             int runInBackground = (int)(Registry.GetValue(registryPath, "RunInBackground", 0) ?? 0);
 
             StartupCheckBox.IsChecked = runAtStartup == 1;
+            HideOnStartupCheckBox.IsChecked = hideOnStartup == 1;
             StartServiceCheckBox.IsChecked = startOnLaunch == 1;
             BackgroundCheckBox.IsChecked = runInBackground == 1;
+
+            UpdateDependentSettingsState();
+        }
+
+        private void UpdateDependentSettingsState()
+        {
+            bool startupEnabled = StartupCheckBox.IsChecked == true;
+
+            HideOnStartupCheckBox.IsEnabled = startupEnabled;
+
+            if (!startupEnabled)
+            {
+                HideOnStartupCheckBox.IsChecked = false;
+            }
         }
 
         private void Settings_Changed(object sender, RoutedEventArgs e)
         {
+            UpdateDependentSettingsState();
+
             bool runAtStartup = StartupCheckBox.IsChecked == true;
+            bool hideOnStartup = runAtStartup && HideOnStartupCheckBox.IsChecked == true;
             bool startOnLaunch = StartServiceCheckBox.IsChecked == true;
             bool runInBackground = BackgroundCheckBox.IsChecked == true;
 
             Registry.SetValue(registryPath, "RunAtStartup", runAtStartup ? 1 : 0);
+            Registry.SetValue(registryPath, "HideOnStartup", hideOnStartup ? 1 : 0);
             Registry.SetValue(registryPath, "StartOnLaunch", startOnLaunch ? 1 : 0);
             Registry.SetValue(registryPath, "RunInBackground", runInBackground ? 1 : 0);
 
-            ManageStartupTask(runAtStartup);
+            ManageStartupTask(runAtStartup, hideOnStartup);
         }
 
-        private void ManageStartupTask(bool enable)
+        private void ManageStartupTask(bool enable, bool startHidden)
         {
             try
             {
                 string taskName = "GoodbyeDPIManager_Startup";
-                string exePath = Environment.ProcessPath!; // Fixed CA1839 message
+                string exePath = Environment.ProcessPath!;
 
-                ProcessStartInfo psi = new ProcessStartInfo
+                string arguments = startHidden ? "--hidden" : "";
+                string taskRunCommand = string.IsNullOrWhiteSpace(arguments)
+                    ? $"\\\"{exePath}\\\""
+                    : $"\\\"{exePath}\\\" {arguments}";
+
+                ProcessStartInfo psi = new()
                 {
                     FileName = "schtasks.exe",
                     WindowStyle = ProcessWindowStyle.Hidden,
@@ -128,15 +153,24 @@ namespace GoodbyeDPIManager
                 };
 
                 if (enable)
-                    psi.Arguments = $"/create /tn \"{taskName}\" /tr \"\\\"{exePath}\\\"\" /sc onlogon /rl highest /f";
+                {
+                    psi.Arguments = $"/create /tn \"{taskName}\" /tr \"{taskRunCommand}\" /sc onlogon /rl highest /f";
+                }
                 else
+                {
                     psi.Arguments = $"/delete /tn \"{taskName}\" /f";
+                }
 
                 Process.Start(psi)?.WaitForExit();
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"Failed to modify startup settings.\nDetails: {ex.Message}", "Settings Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                System.Windows.MessageBox.Show(
+                    $"Failed to modify startup settings.\nDetails: {ex.Message}",
+                    "Settings Error",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error
+                );
             }
         }
 
@@ -151,7 +185,7 @@ namespace GoodbyeDPIManager
         {
             try
             {
-                using (ServiceController sc = new ServiceController(serviceName))
+                using (ServiceController sc = new (serviceName))
                 {
                     switch (sc.Status)
                     {

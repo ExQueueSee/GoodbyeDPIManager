@@ -1,16 +1,17 @@
 # GoodbyeDPI Manager
 
-Lightweight Windows GUI for managing the GoodbyeDPI background service. This application provides an intuitive way to start/stop/restart/configure GoodbyeDPI without needing to interact with the command line after it was installed om your computer. Visit [this link](https://github.com/ValdikSS/GoodbyeDPI) for GoodbyeDPI service source code and installation instructions. If you are from Turkiye and the combination of your ISP + GoodbyeDPI are acting funny, you can visit [this link](https://github.com/cagritaskn/GoodbyeDPI-Turkey) for the version of GoodbyeDPI altered for Turkish users. 
+Lightweight Windows GUI for managing the GoodbyeDPI background service. This application provides an intuitive way to start/stop/restart/configure GoodbyeDPI without needing to interact with the command line after it was installed on your computer. Visit [this link](https://github.com/ValdikSS/GoodbyeDPI) for GoodbyeDPI service source code and installation instructions. If you are from Turkiye and the combination of your ISP + GoodbyeDPI are acting funny, you can visit [this link](https://github.com/cagritaskn/GoodbyeDPI-Turkey) for the version of GoodbyeDPI altered for Turkish users.
 
 ## Features
 
-* **Easy Service Management:** Start and stop the GoodbyeDPI service with a single click.
+* **Easy Service Management:** Start, stop, and restart the GoodbyeDPI service with a single click.
+* **A few quality-of-life options:** The app can start with Windows, start hidden, and stay in the tray if you want it to.
 * **Lightweight:** Built with C# and WPF on modern .NET, ensuring minimal RAM and CPU usage.
 
 ## Installation
 
 1. Go to the [Releases](../../releases/latest) page.
-2. Download the latest `setup.exe` file.
+2. Download the latest `GoodbyeDPIManager_v*_Setup.exe` file.
 3. Run the installer and follow the standard setup wizard.
 4. Once installed, you can launch **GoodbyeDPI Manager** directly from your Windows Start Menu.
 
@@ -19,25 +20,45 @@ Lightweight Windows GUI for managing the GoodbyeDPI background service. This app
 If you want to compile the application yourself, you will need:
 
 * [Visual Studio 2022](https://visualstudio.microsoft.com/)
-* [.NET 10.0 SDK](https://dotnet.microsoft.com/) (or the relevant .NET version you are currently targeting)
-* [Inno Setup Compiler](https://jrsoftware.org/isdl.php) (Only required if you want to build the installer executable)
+* [.NET 10.0 SDK](https://dotnet.microsoft.com/) (or the relevant .NET version the project is currently targeting)
+* [Inno Setup Compiler](https://jrsoftware.org/isdl.php) (only required if you want to build the installer executable)
 
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/YourUsername/GoodbyeDPIManager.git
+   ```powershell
+   git clone https://github.com/ExQueueSee/GoodbyeDPIManager.git
+   cd GoodbyeDPIManager
    ```
-2. Open `GoodbyeDPIManager.sln` in Visual Studio.
+2. Open `GoodbyeDPIManager.slnx` in Visual Studio.
 3. Ensure your target framework is set correctly in the project properties.
 4. Build the solution.
 
+If you want to create the same kind of release build that is used for the installer, you can also run:
+
+```powershell
+.\scripts\build-release.ps1
+```
+
+This publishes the app to `publish/win-x64` and creates the installer under `installer/Output`.
+
+## Releases
+
+The installer is built from the files pushed to GitHub, not from whatever random local publish folder happens to exist on my computer. When a new version tag such as `v1.3` is pushed, GitHub Actions builds the app, compiles the Inno Setup installer, and attaches the setup executable to the GitHub Release.
+
+For a new release, the general idea is:
+
+```powershell
+git tag v1.3
+git push origin v1.3
+```
+
 ## Contributing
 
-Pull requests are welcome. This was a project idea that was very easy to come up with and also develop. I just wanted to have a proper GUI to start, stop, or restart the service because the service was acting funny from time to time which resulted in many websites requiring DPI bypass not loading properly unless I restarted the service. 
+Pull requests are welcome. This was a project idea that was very easy to come up with and also develop. I just wanted to have a proper GUI to start, stop, or restart the service because the service was acting funny from time to time which resulted in many websites requiring DPI bypass not loading properly unless I restarted the service.
 
-If you ever have an idea to further expand this project in any way (which I don't think is possible because the projects main idea is pretty straightforward), as I said, I am open to consider pull requests. 
+If you ever have an idea to further expand this project in any way (which I don't think is possible because the projects main idea is pretty straightforward), as I said, I am open to consider pull requests.
 
 ## License
 
-This project is open-source and available under the [MIT License](LICENSE).
+This project is open-source and available under the [MIT License](LICENSE.txt).
 
 ---

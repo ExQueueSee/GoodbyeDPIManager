@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.ServiceProcess;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -16,7 +17,6 @@ namespace GoodbyeDPIManager
         private readonly string serviceName = "GoodbyeDPI";
         private readonly string registryPath = @"HKEY_CURRENT_USER\Software\GoodbyeDPIManager";
 
-        // Added ? to fix the non-nullable warning
         private DispatcherTimer? timer;
 
         private WinForms.NotifyIcon? _notifyIcon;
@@ -32,7 +32,7 @@ namespace GoodbyeDPIManager
 
             if (StartServiceCheckBox.IsChecked == true)
             {
-                ExecuteServiceCommand(ServiceControllerStatus.Running);
+                _ = ExecuteServiceCommandAsync(ServiceControllerStatus.Running);
             }
         }
 
@@ -42,7 +42,6 @@ namespace GoodbyeDPIManager
             {
                 Text = "GoodbyeDPI Manager",
                 Visible = true,
-                // Using Environment.ProcessPath to clear the CA1839 message
                 Icon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath!)
             };
 
@@ -141,28 +140,51 @@ namespace GoodbyeDPIManager
                 string taskName = "GoodbyeDPIManager_Startup";
                 string exePath = Environment.ProcessPath!;
 
-                string arguments = startHidden ? "--hidden" : "";
-                string taskRunCommand = string.IsNullOrWhiteSpace(arguments)
-                    ? $"\\\"{exePath}\\\""
-                    : $"\\\"{exePath}\\\" {arguments}";
+                string taskRunCommand = startHidden
+                    ? $"\"{exePath}\" --hidden"
+                    : $"\"{exePath}\"";
 
                 ProcessStartInfo psi = new()
                 {
                     FileName = "schtasks.exe",
                     WindowStyle = ProcessWindowStyle.Hidden,
-                    CreateNoWindow = true
+                    CreateNoWindow = true,
+                    UseShellExecute = false
                 };
 
                 if (enable)
                 {
-                    psi.Arguments = $"/create /tn \"{taskName}\" /tr \"{taskRunCommand}\" /sc onlogon /rl highest /f";
+                    psi.ArgumentList.Add("/create");
+                    psi.ArgumentList.Add("/tn");
+                    psi.ArgumentList.Add(taskName);
+                    psi.ArgumentList.Add("/tr");
+                    psi.ArgumentList.Add(taskRunCommand);
+                    psi.ArgumentList.Add("/sc");
+                    psi.ArgumentList.Add("onlogon");
+                    psi.ArgumentList.Add("/rl");
+                    psi.ArgumentList.Add("highest");
+                    psi.ArgumentList.Add("/f");
                 }
                 else
                 {
-                    psi.Arguments = $"/delete /tn \"{taskName}\" /f";
+                    psi.ArgumentList.Add("/delete");
+                    psi.ArgumentList.Add("/tn");
+                    psi.ArgumentList.Add(taskName);
+                    psi.ArgumentList.Add("/f");
                 }
 
-                Process.Start(psi)?.WaitForExit();
+                using Process? process = Process.Start(psi);
+                if (process == null)
+                {
+                    throw new InvalidOperationException("Could not start schtasks.exe.");
+                }
+
+                process.WaitForExit();
+
+                if (enable && process.ExitCode != 0)
+                {
+                    throw new InvalidOperationException($"schtasks.exe exited with code {process.ExitCode}.");
+                }
             }
             catch (Exception ex)
             {
@@ -211,23 +233,21 @@ namespace GoodbyeDPIManager
             catch
             {
                 StatusText.Text = "NOT FOUND";
-                StatusText.Foreground = System.Windows.Media.Brushes.Gray; // Fixed Ambiguity
+                StatusText.Foreground = System.Windows.Media.Brushes.Gray;
                 StatusBorder.Background = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#33808080"));
             }
         }
 
-        private void Start_Click(object sender, RoutedEventArgs e) => ExecuteServiceCommand(ServiceControllerStatus.Running);
-        private void Stop_Click(object sender, RoutedEventArgs e) => ExecuteServiceCommand(ServiceControllerStatus.Stopped);
+        private async void Start_Click(object sender, RoutedEventArgs e) => await ExecuteServiceCommandAsync(ServiceControllerStatus.Running);
+        private async void Stop_Click(object sender, RoutedEventArgs e) => await ExecuteServiceCommandAsync(ServiceControllerStatus.Stopped);
         private async void Restart_Click(object sender, RoutedEventArgs e)
         {
-            // Cast sender to WPF-UI Button so we can manipulate its properties
             var btn = sender as Wpf.Ui.Controls.Button;
             string originalText = btn?.Content?.ToString() ?? "Restart";
 
             try
             {
-                
-                this.IsEnabled = false; // disable window to prevent interactions during restart
+                this.IsEnabled = false;
 
                 if (btn != null)
                 {
@@ -235,47 +255,46 @@ namespace GoodbyeDPIManager
                     btn.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Clock24 };
                 }
 
-                ExecuteServiceCommand(ServiceControllerStatus.Stopped);
+                await ExecuteServiceCommandAsync(ServiceControllerStatus.Stopped);
 
-                // aysnc delay
-                await System.Threading.Tasks.Task.Delay(2000);
+                await Task.Delay(2000);
 
-                ExecuteServiceCommand(ServiceControllerStatus.Running);
+                await ExecuteServiceCommandAsync(ServiceControllerStatus.Running);
             }
             finally
             {
-                // restore UI
                 if (btn != null)
                 {
                     btn.Content = originalText;
-                    // restore loading icon
                     btn.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.ArrowClockwise24 };
                 }
 
                 this.IsEnabled = true;
-
-                
-                UpdateStatus(); // status check because I don't trust myself
+                UpdateStatus();
             }
         }
 
-        private void ExecuteServiceCommand(ServiceControllerStatus targetStatus)
+        private async Task ExecuteServiceCommandAsync(ServiceControllerStatus targetStatus)
         {
             try
             {
-                using (ServiceController sc = new ServiceController(serviceName))
+                await Task.Run(() =>
                 {
-                    if (targetStatus == ServiceControllerStatus.Running && sc.Status != ServiceControllerStatus.Running)
+                    using (ServiceController sc = new ServiceController(serviceName))
                     {
-                        sc.Start();
-                        sc.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromSeconds(5));
+                        if (targetStatus == ServiceControllerStatus.Running && sc.Status != ServiceControllerStatus.Running)
+                        {
+                            sc.Start();
+                            sc.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromSeconds(5));
+                        }
+                        else if (targetStatus == ServiceControllerStatus.Stopped && sc.Status != ServiceControllerStatus.Stopped)
+                        {
+                            sc.Stop();
+                            sc.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(5));
+                        }
                     }
-                    else if (targetStatus == ServiceControllerStatus.Stopped && sc.Status != ServiceControllerStatus.Stopped)
-                    {
-                        sc.Stop();
-                        sc.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(5));
-                    }
-                }
+                });
+
                 UpdateStatus();
             }
             catch (Exception ex)

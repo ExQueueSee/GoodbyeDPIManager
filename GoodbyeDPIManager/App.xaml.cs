@@ -3,8 +3,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows;
 
-//signed commit test
-
 namespace GoodbyeDPIManager
 {
     public partial class App : System.Windows.Application
@@ -12,7 +10,6 @@ namespace GoodbyeDPIManager
         [DllImport("shell32.dll", SetLastError = true)]
         static extern void SetCurrentProcessExplicitAppUserModelID(
             [MarshalAs(UnmanagedType.LPWStr)] string AppID
-            
         );
 
         protected override void OnStartup(StartupEventArgs e)
@@ -20,14 +17,15 @@ namespace GoodbyeDPIManager
             SetCurrentProcessExplicitAppUserModelID("AtaberkTekin.GoodbyeDPIManager");
             base.OnStartup(e);
 
-            bool startHidden = e.Args.Any(arg => 
+            bool startHidden = e.Args.Any(arg =>
                 string.Equals(arg, "--hidden", StringComparison.OrdinalIgnoreCase)
             );
 
             MainWindow window = new MainWindow();
             MainWindow = window;
 
-            if(!startHidden ) {
+            if (!startHidden)
+            {
                 window.Show();
             }
         }

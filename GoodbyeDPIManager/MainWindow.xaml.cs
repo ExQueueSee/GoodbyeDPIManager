@@ -97,7 +97,7 @@ namespace GoodbyeDPIManager
             int runInBackground = (int)(Registry.GetValue(registryPath, "RunInBackground", 0) ?? 0);
 
             StartupCheckBox.IsChecked = runAtStartup == 1;
-            HideOnStartupCheckBox.IsChecked = hideOnStartup == 1;
+            HideOnStartupCheckBox.IsChecked = runAtStartup == 1 && hideOnStartup == 1;
             StartServiceCheckBox.IsChecked = startOnLaunch == 1;
             BackgroundCheckBox.IsChecked = runInBackground == 1;
 

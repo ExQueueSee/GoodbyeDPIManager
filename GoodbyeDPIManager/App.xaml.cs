@@ -3,6 +3,8 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows;
 
+//signed commit test
+
 namespace GoodbyeDPIManager
 {
     public partial class App : System.Windows.Application

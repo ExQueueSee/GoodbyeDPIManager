@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -657,7 +657,50 @@ namespace GoodbyeDPIManager
             return GetAppVersion().Contains('-', StringComparison.Ordinal);
         }
 
-        private void OpenSettings_Click(object sender, RoutedEventArgs e) { RefreshAboutPanel(); MainView.Visibility = Visibility.Collapsed; SettingsView.Visibility = Visibility.Visible; }
+        private void SettingsNav_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Wpf.Ui.Controls.Button button && button.Tag is string sectionKey)
+            {
+                ShowSettingsSection(sectionKey);
+            }
+        }
+
+        private void ShowSettingsSection(string sectionKey)
+        {
+            SetActiveSettingsNav(sectionKey);
+
+            StartupSettingsSection.Visibility = sectionKey == "Startup" ? Visibility.Visible : Visibility.Collapsed;
+            ServiceSettingsSection.Visibility = sectionKey == "Service" ? Visibility.Visible : Visibility.Collapsed;
+            BackgroundSettingsSection.Visibility = sectionKey == "Background" ? Visibility.Visible : Visibility.Collapsed;
+            AboutSettingsSection.Visibility = sectionKey == "About" ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void SetActiveSettingsNav(string sectionKey)
+        {
+            Wpf.Ui.Controls.Button[] navButtons =
+            {
+                StartupNavButton,
+                ServiceNavButton,
+                BackgroundNavButton,
+                AboutNavButton
+            };
+
+            foreach (Wpf.Ui.Controls.Button button in navButtons)
+            {
+                button.Appearance = Equals(button.Tag, sectionKey)
+                    ? ControlAppearance.Secondary
+                    : ControlAppearance.Transparent;
+            }
+        }
+
+        private void OpenSettings_Click(object sender, RoutedEventArgs e)
+        {
+            RefreshAboutPanel();
+            MainView.Visibility = Visibility.Collapsed;
+            SettingsView.Visibility = Visibility.Visible;
+            ShowSettingsSection("Startup");
+        }
+
         private void CloseSettings_Click(object sender, RoutedEventArgs e) { SettingsView.Visibility = Visibility.Collapsed; MainView.Visibility = Visibility.Visible; }
     }
 }

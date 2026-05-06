@@ -512,6 +512,13 @@ namespace GoodbyeDPIManager
             diagnostics.AppendLine("GoodbyeDPI Manager diagnostics");
             diagnostics.AppendLine($"Generated: {DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss zzz}");
             diagnostics.AppendLine($"App version: {GetAppVersion()}");
+
+            string informationalVersion = GetInformationalVersion();
+            if (!string.Equals(informationalVersion, GetAppVersion(), StringComparison.Ordinal))
+            {
+                diagnostics.AppendLine($"Informational version: {informationalVersion}");
+            }
+
             diagnostics.AppendLine($"Install type: {GetInstallType()}");
             diagnostics.AppendLine($"Update channel: {GetUpdateChannel()}");
             diagnostics.AppendLine($"Process path: {Environment.ProcessPath ?? "Unknown"}");
@@ -547,6 +554,16 @@ namespace GoodbyeDPIManager
         private static string GetUpdateChannel() => IsPrereleaseBuild() ? "Beta prerelease" : "Stable";
 
         private static string GetAppVersion()
+        {
+            string version = GetInformationalVersion();
+            int metadataIndex = version.IndexOf('+');
+
+            return metadataIndex >= 0
+                ? version[..metadataIndex]
+                : version;
+        }
+
+        private static string GetInformationalVersion()
         {
             return typeof(MainWindow).Assembly
                 .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?

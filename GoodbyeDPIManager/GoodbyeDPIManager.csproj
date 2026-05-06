@@ -2,10 +2,10 @@
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
 		<TargetFramework>net10.0-windows</TargetFramework>
-		<Version>1.5-beta.1</Version>
+		<Version>1.5-beta.2</Version>
 		<AssemblyVersion>1.5.0.0</AssemblyVersion>
 		<FileVersion>1.5.0.0</FileVersion>
-		<InformationalVersion>1.5-beta.1</InformationalVersion>
+		<InformationalVersion>1.5-beta.2</InformationalVersion>
 		<Product>GoodbyeDPI Manager</Product>
 		<Authors>Ataberk Tekin</Authors>
 		<Company>ExQueueSee</Company>

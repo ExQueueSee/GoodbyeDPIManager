@@ -181,7 +181,8 @@
                     BorderBrush="#343434"
                     BorderThickness="1"
                     CornerRadius="10"
-                    Padding="16">
+                    Padding="16"
+                    Margin="0,0,0,12">
 
                         <StackPanel>
                             <TextBlock Text="Background behavior"
@@ -211,6 +212,72 @@
                                        Margin="0,2,0,0"/>
                                 </StackPanel>
                             </CheckBox>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- About card -->
+                    <Border Background="#202020"
+                    BorderBrush="#343434"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="16">
+
+                        <StackPanel>
+                            <TextBlock Text="About"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               Foreground="White"
+                               Margin="0,0,0,14"/>
+
+                            <Grid Margin="0,0,0,14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Version" Foreground="#8A8A8A" Margin="0,0,12,8"/>
+                                <TextBlock x:Name="AboutVersionText" Grid.Row="0" Grid.Column="1" Foreground="#D0D0D0" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Install type" Foreground="#8A8A8A" Margin="0,0,12,8"/>
+                                <TextBlock x:Name="AboutInstallTypeText" Grid.Row="1" Grid.Column="1" Foreground="#D0D0D0" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Update channel" Foreground="#8A8A8A" Margin="0,0,12,8"/>
+                                <TextBlock x:Name="AboutUpdateChannelText" Grid.Row="2" Grid.Column="1" Foreground="#D0D0D0" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Install path" Foreground="#8A8A8A" Margin="0,0,12,0"/>
+                                <TextBlock x:Name="AboutInstallPathText" Grid.Row="3" Grid.Column="1" Foreground="#D0D0D0" TextWrapping="Wrap"/>
+                            </Grid>
+
+                            <WrapPanel>
+                                <ui:Button x:Name="AboutCheckUpdatesButton"
+                                  Content="Check updates"
+                                  Icon="{ui:SymbolIcon ArrowClockwise24}"
+                                  Appearance="Primary"
+                                  Padding="12,6"
+                                  Margin="0,0,8,8"
+                                  Click="CheckUpdates_Click"/>
+
+                                <ui:Button Content="GitHub release"
+                                  Icon="{ui:SymbolIcon Open24}"
+                                  Appearance="Secondary"
+                                  Padding="12,6"
+                                  Margin="0,0,8,8"
+                                  Click="OpenGitHubRelease_Click"/>
+
+                                <ui:Button Content="Copy diagnostics"
+                                  Icon="{ui:SymbolIcon Clipboard24}"
+                                  Appearance="Secondary"
+                                  Padding="12,6"
+                                  Margin="0,0,8,8"
+                                  Click="CopyDiagnostics_Click"/>
+                            </WrapPanel>
                         </StackPanel>
                     </Border>
 

@@ -1,8 +1,13 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Security.Principal;
 using System.ServiceProcess;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
@@ -20,6 +25,7 @@ namespace GoodbyeDPIManager
         private readonly string serviceName = "GoodbyeDPI";
         private readonly string registryPath = @"HKEY_CURRENT_USER\Software\GoodbyeDPIManager";
         private const string UpdateRepositoryUrl = "https://github.com/ExQueueSee/GoodbyeDPIManager";
+        private const string StartupTaskName = "GoodbyeDPIManager_Startup";
 
         private DispatcherTimer? timer;
 
@@ -33,6 +39,7 @@ namespace GoodbyeDPIManager
             SetupTrayIcon();
             SetupTimer();
             UpdateStatus();
+            RefreshAboutPanel();
             Loaded += MainWindow_Loaded;
 
             if (StartupCheckBox.IsChecked == true)
@@ -153,7 +160,6 @@ namespace GoodbyeDPIManager
         {
             try
             {
-                string taskName = "GoodbyeDPIManager_Startup";
                 string exePath = Environment.ProcessPath!;
 
                 string taskRunCommand = startHidden
@@ -172,7 +178,7 @@ namespace GoodbyeDPIManager
                 {
                     psi.ArgumentList.Add("/create");
                     psi.ArgumentList.Add("/tn");
-                    psi.ArgumentList.Add(taskName);
+                    psi.ArgumentList.Add(StartupTaskName);
                     psi.ArgumentList.Add("/tr");
                     psi.ArgumentList.Add(taskRunCommand);
                     psi.ArgumentList.Add("/sc");
@@ -185,7 +191,7 @@ namespace GoodbyeDPIManager
                 {
                     psi.ArgumentList.Add("/delete");
                     psi.ArgumentList.Add("/tn");
-                    psi.ArgumentList.Add(taskName);
+                    psi.ArgumentList.Add(StartupTaskName);
                     psi.ArgumentList.Add("/f");
                 }
 
@@ -326,10 +332,12 @@ namespace GoodbyeDPIManager
         {
             object? originalToolTip = CheckUpdatesButton.ToolTip;
             bool originalEnabled = CheckUpdatesButton.IsEnabled;
+            bool originalAboutEnabled = AboutCheckUpdatesButton.IsEnabled;
 
             try
             {
                 CheckUpdatesButton.IsEnabled = false;
+                AboutCheckUpdatesButton.IsEnabled = false;
                 CheckUpdatesButton.ToolTip = "Checking for updates";
                 CheckUpdatesButton.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Clock24 };
 
@@ -434,19 +442,205 @@ namespace GoodbyeDPIManager
                 CheckUpdatesButton.ToolTip = originalToolTip;
                 CheckUpdatesButton.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.ArrowClockwise24 };
                 CheckUpdatesButton.IsEnabled = originalEnabled;
+                AboutCheckUpdatesButton.IsEnabled = originalAboutEnabled;
+            }
+        }
+
+        private void RefreshAboutPanel()
+        {
+            AboutVersionText.Text = GetAppVersion();
+            AboutInstallTypeText.Text = GetInstallType();
+            AboutUpdateChannelText.Text = GetUpdateChannel();
+            AboutInstallPathText.Text = Environment.ProcessPath ?? "Unknown";
+        }
+
+        private void OpenGitHubRelease_Click(object sender, RoutedEventArgs e)
+        {
+            string version = GetAppVersion();
+            string url = string.IsNullOrWhiteSpace(version) || version == "Unknown"
+                ? $"{UpdateRepositoryUrl}/releases"
+                : $"{UpdateRepositoryUrl}/releases/tag/v{version}";
+
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    $"Could not open GitHub release page.\nDetails: {ex.Message}",
+                    "GitHub Release",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error
+                );
+            }
+        }
+
+        private void CopyDiagnostics_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                RefreshAboutPanel();
+                System.Windows.Clipboard.SetText(BuildDiagnosticsText());
+
+                System.Windows.MessageBox.Show(
+                    "Diagnostics copied to clipboard.",
+                    "Diagnostics",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information
+                );
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    $"Could not copy diagnostics.\nDetails: {ex.Message}",
+                    "Diagnostics",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error
+                );
+            }
+        }
+
+        private string BuildDiagnosticsText()
+        {
+            StringBuilder diagnostics = new();
+
+            diagnostics.AppendLine("GoodbyeDPI Manager diagnostics");
+            diagnostics.AppendLine($"Generated: {DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss zzz}");
+            diagnostics.AppendLine($"App version: {GetAppVersion()}");
+            diagnostics.AppendLine($"Install type: {GetInstallType()}");
+            diagnostics.AppendLine($"Update channel: {GetUpdateChannel()}");
+            diagnostics.AppendLine($"Process path: {Environment.ProcessPath ?? "Unknown"}");
+            diagnostics.AppendLine($"Running as administrator: {IsRunningAsAdministrator()}");
+            diagnostics.AppendLine($"OS: {RuntimeInformation.OSDescription}");
+            diagnostics.AppendLine($".NET: {RuntimeInformation.FrameworkDescription}");
+            diagnostics.AppendLine($"Service status: {GetServiceStatusText()}");
+            diagnostics.AppendLine($"Startup task: {GetStartupTaskStatusText()}");
+            diagnostics.AppendLine($"Run at startup: {StartupCheckBox.IsChecked == true}");
+            diagnostics.AppendLine($"Hide on startup: {HideOnStartupCheckBox.IsChecked == true}");
+            diagnostics.AppendLine($"Start service on launch: {StartServiceCheckBox.IsChecked == true}");
+            diagnostics.AppendLine($"Minimize to tray: {BackgroundCheckBox.IsChecked == true}");
+            diagnostics.AppendLine();
+            diagnostics.AppendLine("Velopack log tail:");
+            diagnostics.AppendLine(GetVelopackLogTail());
+
+            return diagnostics.ToString();
+        }
+
+        private string GetInstallType()
+        {
+            try
+            {
+                UpdateManager updateManager = new(new GithubSource(UpdateRepositoryUrl, "", IsPrereleaseBuild()));
+                return updateManager.IsInstalled ? "Velopack install" : "Development or portable";
+            }
+            catch
+            {
+                return "Unknown";
+            }
+        }
+
+        private static string GetUpdateChannel() => IsPrereleaseBuild() ? "Beta prerelease" : "Stable";
+
+        private static string GetAppVersion()
+        {
+            return typeof(MainWindow).Assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+                .InformationalVersion ?? "Unknown";
+        }
+
+        private string GetServiceStatusText()
+        {
+            try
+            {
+                using ServiceController serviceController = new(serviceName);
+                return serviceController.Status.ToString();
+            }
+            catch (Exception ex)
+            {
+                return $"Not found ({ex.GetType().Name})";
+            }
+        }
+
+        private static string GetStartupTaskStatusText()
+        {
+            try
+            {
+                ProcessStartInfo psi = new()
+                {
+                    FileName = "schtasks.exe",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                };
+
+                psi.ArgumentList.Add("/query");
+                psi.ArgumentList.Add("/tn");
+                psi.ArgumentList.Add(StartupTaskName);
+
+                using Process? process = Process.Start(psi);
+                if (process == null)
+                {
+                    return "Unknown";
+                }
+
+                if (!process.WaitForExit(3000))
+                {
+                    process.Kill();
+                    return "Unknown (query timed out)";
+                }
+
+                return process.ExitCode == 0 ? "Present" : "Not present";
+            }
+            catch (Exception ex)
+            {
+                return $"Unknown ({ex.GetType().Name})";
+            }
+        }
+
+        private static bool IsRunningAsAdministrator()
+        {
+            using WindowsIdentity identity = WindowsIdentity.GetCurrent();
+            WindowsPrincipal principal = new(identity);
+            return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        }
+
+        private static string GetVelopackLogTail()
+        {
+            try
+            {
+                string logPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "GoodbyeDPIManager",
+                    "velopack.log"
+                );
+
+                if (!File.Exists(logPath))
+                {
+                    return "No Velopack log found.";
+                }
+
+                string[] lines = File.ReadLines(logPath).TakeLast(20).ToArray();
+                return lines.Length == 0 ? "Velopack log is empty." : string.Join(Environment.NewLine, lines);
+            }
+            catch (Exception ex)
+            {
+                return $"Could not read Velopack log ({ex.GetType().Name}).";
             }
         }
 
         private static bool IsPrereleaseBuild()
         {
-            string? version = typeof(MainWindow).Assembly
-                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-                .InformationalVersion;
-
-            return version?.Contains('-', StringComparison.Ordinal) == true;
+            return GetAppVersion().Contains('-', StringComparison.Ordinal);
         }
 
-        private void OpenSettings_Click(object sender, RoutedEventArgs e) { MainView.Visibility = Visibility.Collapsed; SettingsView.Visibility = Visibility.Visible; }
+        private void OpenSettings_Click(object sender, RoutedEventArgs e) { RefreshAboutPanel(); MainView.Visibility = Visibility.Collapsed; SettingsView.Visibility = Visibility.Visible; }
         private void CloseSettings_Click(object sender, RoutedEventArgs e) { SettingsView.Visibility = Visibility.Collapsed; MainView.Visibility = Visibility.Visible; }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -643,8 +644,27 @@ namespace GoodbyeDPIManager
                     return "No Velopack log found.";
                 }
 
-                string[] lines = File.ReadLines(logPath).TakeLast(20).ToArray();
-                return lines.Length == 0 ? "Velopack log is empty." : string.Join(Environment.NewLine, lines);
+                Queue<string> lines = new();
+
+                using FileStream stream = new(
+                    logPath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.ReadWrite | FileShare.Delete
+                );
+                using StreamReader reader = new(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+
+                while (reader.ReadLine() is { } line)
+                {
+                    if (lines.Count == 20)
+                    {
+                        lines.Dequeue();
+                    }
+
+                    lines.Enqueue(line);
+                }
+
+                return lines.Count == 0 ? "Velopack log is empty." : string.Join(Environment.NewLine, lines);
             }
             catch (Exception ex)
             {

@@ -41,15 +41,22 @@ This publishes the app to `publish/win-x64` and creates the Velopack release fil
 
 ## Releases
 
-The installer and update packages are built from the files pushed to GitHub, not from whatever random local publish folder happens to exist on my computer. When a new version tag such as `v1.4` is pushed, GitHub Actions builds the app, creates Velopack packages, and attaches the setup/update files to the GitHub Release.
+The installer and update packages are built from the files pushed to GitHub, not from whatever random local publish folder happens to exist on my computer. When a new version tag such as `v1.5` is pushed, GitHub Actions builds the app, creates Velopack packages, and attaches the setup/update files to the GitHub Release.
 
 Velopack is also what lets the app check GitHub Releases and tell the user when a newer version is available. If the user wants the update right then, the app can download and apply it without making them hunt down the release page manually.
 
 For a new release, the general idea is:
 
 ```powershell
-git tag v1.4
-git push origin v1.4
+git tag v1.5
+git push origin v1.5
+```
+
+If I am testing something new and do not want to call it a normal release yet, I can use a beta pre-release tag instead, be aware of that: 
+
+```powershell
+git tag v1.5-beta.1
+git push origin v1.5-beta.1
 ```
 
 ## Contributing

@@ -40,16 +40,27 @@ jobs:
           }
 
           $version = $tag.Substring(1)
+          $isPrerelease = "false"
 
-          if ($version -notmatch '^\d+\.\d+$') {
-            throw "Release tag must use v1.4 style. Current tag: $tag"
+          if ($version -match '^\d+\.\d+$') {
+            $packageVersion = "$version.0"
           }
-
-          $packageVersion = "$version.0"
+          elseif ($version -match '^(\d+\.\d+)-([0-9A-Za-z][0-9A-Za-z.-]*)$') {
+            $packageVersion = "$($Matches[1]).0-$($Matches[2])"
+            $isPrerelease = "true"
+          }
+          elseif ($version -match '^\d+\.\d+\.\d+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$') {
+            $packageVersion = $version
+            $isPrerelease = $version.Contains("-") ? "true" : "false"
+          }
+          else {
+            throw "Release tag must use v1.5 or v1.5-beta.1 style. Current tag: $tag"
+          }
 
           "APP_VERSION=$version" >> $env:GITHUB_ENV
           "PACKAGE_VERSION=$packageVersion" >> $env:GITHUB_ENV
           "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+          "IS_PRERELEASE=$isPrerelease" >> $env:GITHUB_ENV
 
       - name: Check project version
         run: |
@@ -70,7 +81,20 @@ jobs:
           New-Item -ItemType Directory -Force -Path "Releases" | Out-Null
 
           try {
-            dotnet tool run vpk -- download github --repoUrl "https://github.com/ExQueueSee/GoodbyeDPIManager" --outputDir "Releases" --channel "win" --token $env:GH_TOKEN
+            $downloadArgs = @(
+              "tool", "run", "vpk", "--",
+              "download", "github",
+              "--repoUrl", "https://github.com/ExQueueSee/GoodbyeDPIManager",
+              "--outputDir", "Releases",
+              "--channel", "win",
+              "--token", $env:GH_TOKEN
+            )
+
+            if ($env:IS_PRERELEASE -eq "true") {
+              $downloadArgs += "--pre"
+            }
+
+            dotnet @downloadArgs
 
             if ($LASTEXITCODE -ne 0) {
               Write-Host "No previous Velopack release was downloaded. Continuing with a full package only."
@@ -92,22 +116,42 @@ jobs:
           $releaseExists = $LASTEXITCODE -eq 0
 
           if (-not $releaseExists) {
-            gh release create $env:RELEASE_TAG --verify-tag --title "GoodbyeDPI Manager v$env:APP_VERSION" --generate-notes
+            $releaseArgs = @(
+              $env:RELEASE_TAG,
+              "--verify-tag",
+              "--title", "GoodbyeDPI Manager v$env:APP_VERSION",
+              "--generate-notes"
+            )
+
+            if ($env:IS_PRERELEASE -eq "true") {
+              $releaseArgs += "--prerelease"
+            }
+
+            gh release create @releaseArgs
           }
 
           if ($LASTEXITCODE -ne 0) {
             throw "Failed to create or inspect GitHub Release."
           }
 
-          dotnet tool run vpk -- upload github `
-            --repoUrl "https://github.com/ExQueueSee/GoodbyeDPIManager" `
-            --outputDir "Releases" `
-            --channel "win" `
-            --token $env:GH_TOKEN `
-            --tag $env:RELEASE_TAG `
-            --releaseName "GoodbyeDPI Manager v$env:APP_VERSION" `
-            --publish `
-            --merge
+          $uploadArgs = @(
+            "tool", "run", "vpk", "--",
+            "upload", "github",
+            "--repoUrl", "https://github.com/ExQueueSee/GoodbyeDPIManager",
+            "--outputDir", "Releases",
+            "--channel", "win",
+            "--token", $env:GH_TOKEN,
+            "--tag", $env:RELEASE_TAG,
+            "--releaseName", "GoodbyeDPI Manager v$env:APP_VERSION",
+            "--publish",
+            "--merge"
+          )
+
+          if ($env:IS_PRERELEASE -eq "true") {
+            $uploadArgs += "--pre"
+          }
+
+          dotnet @uploadArgs
 
           if ($LASTEXITCODE -ne 0) {
             throw "Failed to publish Velopack release assets."

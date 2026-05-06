@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Reflection;
 using System.ServiceProcess;
 using System.Threading.Tasks;
 using System.Windows;
@@ -332,7 +333,7 @@ namespace GoodbyeDPIManager
                 CheckUpdatesButton.ToolTip = "Checking for updates";
                 CheckUpdatesButton.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Clock24 };
 
-                UpdateManager updateManager = new(new GithubSource(UpdateRepositoryUrl, "", false));
+                UpdateManager updateManager = new(new GithubSource(UpdateRepositoryUrl, "", IsPrereleaseBuild()));
 
                 if (!updateManager.IsInstalled)
                 {
@@ -434,6 +435,15 @@ namespace GoodbyeDPIManager
                 CheckUpdatesButton.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.ArrowClockwise24 };
                 CheckUpdatesButton.IsEnabled = originalEnabled;
             }
+        }
+
+        private static bool IsPrereleaseBuild()
+        {
+            string? version = typeof(MainWindow).Assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+                .InformationalVersion;
+
+            return version?.Contains('-', StringComparison.Ordinal) == true;
         }
 
         private void OpenSettings_Click(object sender, RoutedEventArgs e) { MainView.Visibility = Visibility.Collapsed; SettingsView.Visibility = Visibility.Visible; }

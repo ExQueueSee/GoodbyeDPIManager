@@ -32,11 +32,15 @@ function ConvertTo-SemVer {
         return "$InputVersion.0"
     }
 
+    if ($InputVersion -match '^(\d+\.\d+)([\-+][0-9A-Za-z\-.+]+)$') {
+        return "$($Matches[1]).0$($Matches[2])"
+    }
+
     if ($InputVersion -match '^\d+\.\d+\.\d+([\-+][0-9A-Za-z\-.+]+)?$') {
         return $InputVersion
     }
 
-    throw "Version '$InputVersion' is not compatible with Velopack. Use v1.4 tags and project versions like 1.4, or package versions like 1.4.0."
+    throw "Version '$InputVersion' is not compatible with Velopack. Use tags/project versions like 1.5, 1.5-beta.1, or package versions like 1.5.0."
 }
 
 function Assert-PathInsideRepo {

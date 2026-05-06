@@ -269,21 +269,25 @@
                                         </Grid.ColumnDefinitions>
 
                                         <StackPanel Grid.Column="0" Margin="0,0,18,0">
-                                            <TextBlock Text="Include beta releases"
+                                            <TextBlock Text="Update channel"
                                                        Foreground="#F0F2F5"
                                                        FontWeight="SemiBold"
                                                        TextWrapping="Wrap"/>
-                                            <TextBlock Text="When enabled, update checks can offer GitHub pre-releases. Turn this off if you only want normal stable releases. &#x0a;&#x0a;NOTE: Stable channel is almost always the way to go unless you are beta testing voluntarily or the developer has personally recommended you to install it."
+                                            <TextBlock Text="Choose whether update checks use normal stable releases or beta GitHub pre-releases. &#x0a;&#x0a;NOTE: Stable channel is almost always the way to go unless you are beta testing voluntarily or the developer has personally recommended you to install it."
                                                        Foreground="#A1A8B3"
                                                        FontSize="12"
                                                        TextWrapping="Wrap"
                                                        Margin="0,4,0,0"/>
                                         </StackPanel>
 
-                                        <CheckBox x:Name="IncludeBetaUpdatesCheckBox"
+                                        <ComboBox x:Name="UpdateChannelComboBox"
                                                   Grid.Column="1"
-                                                  Click="UpdateSettings_Changed"
-                                                  VerticalAlignment="Center"/>
+                                                  Width="140"
+                                                  VerticalAlignment="Center"
+                                                  SelectionChanged="UpdateSettings_Changed">
+                                            <ComboBoxItem Content="Stable"/>
+                                            <ComboBoxItem Content="Beta"/>
+                                        </ComboBox>
                                     </Grid>
                                 </Border>
 

@@ -33,6 +33,9 @@ namespace GoodbyeDPIManager
 
         private WinForms.NotifyIcon? _notifyIcon;
         private bool _isExplicitExit = false;
+        private bool _savedIncludeBetaUpdates;
+        private bool _isRestoringUpdateChannel;
+        private bool _isLoadingSettings;
 
         public MainWindow()
         {
@@ -121,16 +124,29 @@ namespace GoodbyeDPIManager
             int runInBackground = (int)(Registry.GetValue(registryPath, "RunInBackground", 0) ?? 0);
             object? includeBetaUpdates = Registry.GetValue(registryPath, IncludeBetaUpdatesRegistryValue, null);
 
-            StartupCheckBox.IsChecked = runAtStartup == 1;
-            HideOnStartupCheckBox.IsChecked = runAtStartup == 1 && hideOnStartup == 1;
-            StartServiceCheckBox.IsChecked = startOnLaunch == 1;
-            BackgroundCheckBox.IsChecked = runInBackground == 1;
-            IncludeBetaUpdatesCheckBox.IsChecked = includeBetaUpdates switch
+            bool includeBetaUpdatesEnabled = includeBetaUpdates switch
             {
                 int value => value == 1,
                 string value => value == "1",
                 _ => IsPrereleaseBuild()
             };
+
+            _isLoadingSettings = true;
+
+            try
+            {
+                StartupCheckBox.IsChecked = runAtStartup == 1;
+                HideOnStartupCheckBox.IsChecked = runAtStartup == 1 && hideOnStartup == 1;
+                StartServiceCheckBox.IsChecked = startOnLaunch == 1;
+                BackgroundCheckBox.IsChecked = runInBackground == 1;
+                UpdateChannelComboBox.SelectedIndex = includeBetaUpdatesEnabled ? 1 : 0;
+            }
+            finally
+            {
+                _isLoadingSettings = false;
+            }
+
+            _savedIncludeBetaUpdates = includeBetaUpdatesEnabled;
 
             UpdateDependentSettingsState();
         }
@@ -165,15 +181,24 @@ namespace GoodbyeDPIManager
             ManageStartupTask(runAtStartup, hideOnStartup);
         }
 
-        private void UpdateSettings_Changed(object sender, RoutedEventArgs e)
+        private async void UpdateSettings_Changed(object sender, RoutedEventArgs e)
         {
-            Registry.SetValue(
-                registryPath,
-                IncludeBetaUpdatesRegistryValue,
-                ShouldIncludePrereleaseUpdates() ? 1 : 0
-            );
+            if (_isLoadingSettings || _isRestoringUpdateChannel)
+            {
+                RefreshAboutPanel();
+                return;
+            }
 
-            RefreshAboutPanel();
+            bool requestedIncludeBetaUpdates = ShouldIncludePrereleaseUpdates();
+            bool previousIncludeBetaUpdates = _savedIncludeBetaUpdates;
+
+            if (requestedIncludeBetaUpdates == previousIncludeBetaUpdates)
+            {
+                RefreshAboutPanel();
+                return;
+            }
+
+            await SwitchUpdateChannelAsync(requestedIncludeBetaUpdates, previousIncludeBetaUpdates);
         }
 
         private void ManageStartupTask(bool enable, bool startHidden)
@@ -348,6 +373,110 @@ namespace GoodbyeDPIManager
             }
         }
 
+        private async Task SwitchUpdateChannelAsync(bool includeBetaUpdates, bool previousIncludeBetaUpdates)
+        {
+            object? originalToolTip = CheckUpdatesButton.ToolTip;
+            bool originalEnabled = CheckUpdatesButton.IsEnabled;
+            bool originalAboutEnabled = AboutCheckUpdatesButton.IsEnabled;
+            bool originalUpdatesPageEnabled = UpdatesPageCheckUpdatesButton.IsEnabled;
+            bool originalChannelSelectorEnabled = UpdateChannelComboBox.IsEnabled;
+            string targetChannel = includeBetaUpdates ? "beta" : "stable";
+            string targetChannelTitle = includeBetaUpdates ? "beta releases" : "stable releases";
+
+            try
+            {
+                CheckUpdatesButton.IsEnabled = false;
+                AboutCheckUpdatesButton.IsEnabled = false;
+                UpdatesPageCheckUpdatesButton.IsEnabled = false;
+                UpdateChannelComboBox.IsEnabled = false;
+                CheckUpdatesButton.ToolTip = $"Checking {targetChannel} releases";
+                CheckUpdatesButton.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Clock24 };
+
+                UpdateManager updateManager = CreateUpdateManager(includeBetaUpdates, allowVersionDowngrade: true);
+
+                if (!updateManager.IsInstalled)
+                {
+                    SaveUpdateChannelPreference(includeBetaUpdates);
+
+                    System.Windows.MessageBox.Show(
+                        "Update channel preference saved. Update checks will work after this app is installed with the Velopack installer.",
+                        "Updates",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Information
+                    );
+
+                    return;
+                }
+
+                UpdateInfo? updateInfo = await updateManager.CheckForUpdatesAsync();
+                if (updateInfo == null)
+                {
+                    RestoreUpdateChannelPreference(previousIncludeBetaUpdates);
+
+                    System.Windows.MessageBox.Show(
+                        $"No {targetChannel} release is available to switch to right now.\n\nYour update channel will stay on {GetChannelDisplayName(previousIncludeBetaUpdates)}.",
+                        "Update channel",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Information
+                    );
+
+                    return;
+                }
+
+                string latestVersion = updateInfo.TargetFullRelease.Version.ToString();
+                var switchChoice = System.Windows.MessageBox.Show(
+                    $"GoodbyeDPI Manager v{latestVersion} is available on {targetChannelTitle}.\n\nSwitch to {targetChannelTitle} and install it now?",
+                    "Switch update channel",
+                    System.Windows.MessageBoxButton.YesNo,
+                    System.Windows.MessageBoxImage.Information
+                );
+
+                if (switchChoice != System.Windows.MessageBoxResult.Yes)
+                {
+                    RestoreUpdateChannelPreference(previousIncludeBetaUpdates);
+                    return;
+                }
+
+                CheckUpdatesButton.ToolTip = "Downloading update";
+
+                await updateManager.DownloadUpdatesAsync(updateInfo, progress =>
+                {
+                    Dispatcher.Invoke(() => CheckUpdatesButton.ToolTip = $"Downloading {progress}%");
+                });
+
+                SaveUpdateChannelPreference(includeBetaUpdates);
+
+                System.Windows.MessageBox.Show(
+                    $"The update is ready. GoodbyeDPI Manager will restart to finish switching to {targetChannelTitle}.",
+                    "Update ready",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information
+                );
+
+                updateManager.ApplyUpdatesAndRestart(updateInfo.TargetFullRelease);
+            }
+            catch (Exception ex)
+            {
+                RestoreUpdateChannelPreference(previousIncludeBetaUpdates);
+
+                System.Windows.MessageBox.Show(
+                    $"Failed to switch update channel.\nDetails: {ex.Message}",
+                    "Update Error",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error
+                );
+            }
+            finally
+            {
+                CheckUpdatesButton.ToolTip = originalToolTip;
+                CheckUpdatesButton.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.ArrowClockwise24 };
+                CheckUpdatesButton.IsEnabled = originalEnabled;
+                AboutCheckUpdatesButton.IsEnabled = originalAboutEnabled;
+                UpdatesPageCheckUpdatesButton.IsEnabled = originalUpdatesPageEnabled;
+                UpdateChannelComboBox.IsEnabled = originalChannelSelectorEnabled;
+            }
+        }
+
         private async Task CheckForUpdatesAsync(bool showNoUpdateMessage)
         {
             object? originalToolTip = CheckUpdatesButton.ToolTip;
@@ -363,7 +492,10 @@ namespace GoodbyeDPIManager
                 CheckUpdatesButton.ToolTip = "Checking for updates";
                 CheckUpdatesButton.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Clock24 };
 
-                UpdateManager updateManager = new(new GithubSource(UpdateRepositoryUrl, "", ShouldIncludePrereleaseUpdates()));
+                UpdateManager updateManager = CreateUpdateManager(
+                    ShouldIncludePrereleaseUpdates(),
+                    allowVersionDowngrade: ShouldAllowVersionDowngradeForSelectedChannel()
+                );
 
                 if (!updateManager.IsInstalled)
                 {
@@ -462,11 +594,11 @@ namespace GoodbyeDPIManager
             finally
             {
                 CheckUpdatesButton.ToolTip = originalToolTip;
-                CheckUpdatesButton.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.ArrowClockwise24 };
-                CheckUpdatesButton.IsEnabled = originalEnabled;
-                AboutCheckUpdatesButton.IsEnabled = originalAboutEnabled;
-                UpdatesPageCheckUpdatesButton.IsEnabled = originalUpdatesPageEnabled;
-            }
+            CheckUpdatesButton.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.ArrowClockwise24 };
+            CheckUpdatesButton.IsEnabled = originalEnabled;
+            AboutCheckUpdatesButton.IsEnabled = originalAboutEnabled;
+            UpdatesPageCheckUpdatesButton.IsEnabled = originalUpdatesPageEnabled;
+        }
         }
 
         private void RefreshAboutPanel()
@@ -566,7 +698,7 @@ namespace GoodbyeDPIManager
         {
             try
             {
-                UpdateManager updateManager = new(new GithubSource(UpdateRepositoryUrl, "", ShouldIncludePrereleaseUpdates()));
+                UpdateManager updateManager = CreateUpdateManager(ShouldIncludePrereleaseUpdates());
                 return updateManager.IsInstalled ? "Velopack install" : "Development or portable";
             }
             catch
@@ -575,13 +707,13 @@ namespace GoodbyeDPIManager
             }
         }
 
-        private string GetUpdateChannel() => ShouldIncludePrereleaseUpdates() ? "Beta releases included" : "Stable only";
+        private string GetUpdateChannel() => GetChannelDisplayName(ShouldIncludePrereleaseUpdates());
 
         private string GetUpdateChannelDescription()
         {
             return ShouldIncludePrereleaseUpdates()
-                ? "Update checks include GitHub pre-releases and stable releases."
-                : "Update checks only include stable GitHub releases.";
+                ? "Update checks use beta GitHub pre-releases."
+                : "Update checks use stable GitHub releases.";
         }
 
         private static string GetAppVersion()
@@ -709,7 +841,48 @@ namespace GoodbyeDPIManager
 
         private bool ShouldIncludePrereleaseUpdates()
         {
-            return IncludeBetaUpdatesCheckBox.IsChecked == true;
+            return UpdateChannelComboBox.SelectedIndex == 1;
+        }
+
+        private bool ShouldAllowVersionDowngradeForSelectedChannel()
+        {
+            return IsPrereleaseBuild() != ShouldIncludePrereleaseUpdates();
+        }
+
+        private void SaveUpdateChannelPreference(bool includeBetaUpdates)
+        {
+            Registry.SetValue(registryPath, IncludeBetaUpdatesRegistryValue, includeBetaUpdates ? 1 : 0);
+            _savedIncludeBetaUpdates = includeBetaUpdates;
+            RefreshAboutPanel();
+        }
+
+        private void RestoreUpdateChannelPreference(bool includeBetaUpdates)
+        {
+            _isRestoringUpdateChannel = true;
+
+            try
+            {
+                UpdateChannelComboBox.SelectedIndex = includeBetaUpdates ? 1 : 0;
+            }
+            finally
+            {
+                _isRestoringUpdateChannel = false;
+            }
+
+            RefreshAboutPanel();
+        }
+
+        private static string GetChannelDisplayName(bool includeBetaUpdates)
+        {
+            return includeBetaUpdates ? "Beta releases" : "Stable releases";
+        }
+
+        private static UpdateManager CreateUpdateManager(bool includePrereleaseUpdates, bool allowVersionDowngrade = false)
+        {
+            return new UpdateManager(
+                new GithubSource(UpdateRepositoryUrl, "", includePrereleaseUpdates),
+                new UpdateOptions { AllowVersionDowngrade = allowVersionDowngrade }
+            );
         }
 
         private void SettingsNav_Click(object sender, RoutedEventArgs e)

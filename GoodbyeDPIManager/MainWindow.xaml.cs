@@ -27,6 +27,7 @@ namespace GoodbyeDPIManager
         private readonly string registryPath = @"HKEY_CURRENT_USER\Software\GoodbyeDPIManager";
         private const string UpdateRepositoryUrl = "https://github.com/ExQueueSee/GoodbyeDPIManager";
         private const string StartupTaskName = "GoodbyeDPIManager_Startup";
+        private const string IncludeBetaUpdatesRegistryValue = "IncludeBetaUpdates";
 
         private DispatcherTimer? timer;
 
@@ -118,11 +119,18 @@ namespace GoodbyeDPIManager
             int hideOnStartup = (int)(Registry.GetValue(registryPath, "HideOnStartup", 0) ?? 0);
             int startOnLaunch = (int)(Registry.GetValue(registryPath, "StartOnLaunch", 0) ?? 0);
             int runInBackground = (int)(Registry.GetValue(registryPath, "RunInBackground", 0) ?? 0);
+            object? includeBetaUpdates = Registry.GetValue(registryPath, IncludeBetaUpdatesRegistryValue, null);
 
             StartupCheckBox.IsChecked = runAtStartup == 1;
             HideOnStartupCheckBox.IsChecked = runAtStartup == 1 && hideOnStartup == 1;
             StartServiceCheckBox.IsChecked = startOnLaunch == 1;
             BackgroundCheckBox.IsChecked = runInBackground == 1;
+            IncludeBetaUpdatesCheckBox.IsChecked = includeBetaUpdates switch
+            {
+                int value => value == 1,
+                string value => value == "1",
+                _ => IsPrereleaseBuild()
+            };
 
             UpdateDependentSettingsState();
         }
@@ -155,6 +163,17 @@ namespace GoodbyeDPIManager
             Registry.SetValue(registryPath, "RunInBackground", runInBackground ? 1 : 0);
 
             ManageStartupTask(runAtStartup, hideOnStartup);
+        }
+
+        private void UpdateSettings_Changed(object sender, RoutedEventArgs e)
+        {
+            Registry.SetValue(
+                registryPath,
+                IncludeBetaUpdatesRegistryValue,
+                ShouldIncludePrereleaseUpdates() ? 1 : 0
+            );
+
+            RefreshAboutPanel();
         }
 
         private void ManageStartupTask(bool enable, bool startHidden)
@@ -334,15 +353,17 @@ namespace GoodbyeDPIManager
             object? originalToolTip = CheckUpdatesButton.ToolTip;
             bool originalEnabled = CheckUpdatesButton.IsEnabled;
             bool originalAboutEnabled = AboutCheckUpdatesButton.IsEnabled;
+            bool originalUpdatesPageEnabled = UpdatesPageCheckUpdatesButton.IsEnabled;
 
             try
             {
                 CheckUpdatesButton.IsEnabled = false;
                 AboutCheckUpdatesButton.IsEnabled = false;
+                UpdatesPageCheckUpdatesButton.IsEnabled = false;
                 CheckUpdatesButton.ToolTip = "Checking for updates";
                 CheckUpdatesButton.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Clock24 };
 
-                UpdateManager updateManager = new(new GithubSource(UpdateRepositoryUrl, "", IsPrereleaseBuild()));
+                UpdateManager updateManager = new(new GithubSource(UpdateRepositoryUrl, "", ShouldIncludePrereleaseUpdates()));
 
                 if (!updateManager.IsInstalled)
                 {
@@ -444,6 +465,7 @@ namespace GoodbyeDPIManager
                 CheckUpdatesButton.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.ArrowClockwise24 };
                 CheckUpdatesButton.IsEnabled = originalEnabled;
                 AboutCheckUpdatesButton.IsEnabled = originalAboutEnabled;
+                UpdatesPageCheckUpdatesButton.IsEnabled = originalUpdatesPageEnabled;
             }
         }
 
@@ -452,6 +474,7 @@ namespace GoodbyeDPIManager
             AboutVersionText.Text = GetAppVersion();
             AboutInstallTypeText.Text = GetInstallType();
             AboutUpdateChannelText.Text = GetUpdateChannel();
+            UpdateChannelSummaryText.Text = GetUpdateChannelDescription();
             AboutInstallPathText.Text = Environment.ProcessPath ?? "Unknown";
         }
 
@@ -543,7 +566,7 @@ namespace GoodbyeDPIManager
         {
             try
             {
-                UpdateManager updateManager = new(new GithubSource(UpdateRepositoryUrl, "", IsPrereleaseBuild()));
+                UpdateManager updateManager = new(new GithubSource(UpdateRepositoryUrl, "", ShouldIncludePrereleaseUpdates()));
                 return updateManager.IsInstalled ? "Velopack install" : "Development or portable";
             }
             catch
@@ -552,7 +575,14 @@ namespace GoodbyeDPIManager
             }
         }
 
-        private static string GetUpdateChannel() => IsPrereleaseBuild() ? "Beta prerelease" : "Stable";
+        private string GetUpdateChannel() => ShouldIncludePrereleaseUpdates() ? "Beta releases included" : "Stable only";
+
+        private string GetUpdateChannelDescription()
+        {
+            return ShouldIncludePrereleaseUpdates()
+                ? "Update checks include GitHub pre-releases and stable releases."
+                : "Update checks only include stable GitHub releases.";
+        }
 
         private static string GetAppVersion()
         {
@@ -677,6 +707,11 @@ namespace GoodbyeDPIManager
             return GetAppVersion().Contains('-', StringComparison.Ordinal);
         }
 
+        private bool ShouldIncludePrereleaseUpdates()
+        {
+            return IncludeBetaUpdatesCheckBox.IsChecked == true;
+        }
+
         private void SettingsNav_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Wpf.Ui.Controls.Button button && button.Tag is string sectionKey)
@@ -691,6 +726,7 @@ namespace GoodbyeDPIManager
 
             StartupSettingsSection.Visibility = sectionKey == "Startup" ? Visibility.Visible : Visibility.Collapsed;
             ServiceSettingsSection.Visibility = sectionKey == "Service" ? Visibility.Visible : Visibility.Collapsed;
+            UpdatesSettingsSection.Visibility = sectionKey == "Updates" ? Visibility.Visible : Visibility.Collapsed;
             BackgroundSettingsSection.Visibility = sectionKey == "Background" ? Visibility.Visible : Visibility.Collapsed;
             AboutSettingsSection.Visibility = sectionKey == "About" ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -701,6 +737,7 @@ namespace GoodbyeDPIManager
             {
                 StartupNavButton,
                 ServiceNavButton,
+                UpdatesNavButton,
                 BackgroundNavButton,
                 AboutNavButton
             };

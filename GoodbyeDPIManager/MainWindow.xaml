@@ -94,6 +94,17 @@
                                Margin="0,0,0,4"
                                Click="SettingsNav_Click"/>
 
+                    <ui:Button x:Name="UpdatesNavButton"
+                               Tag="Updates"
+                               Icon="{ui:SymbolIcon ArrowClockwise24}"
+                               Content="Updates"
+                               Appearance="Transparent"
+                               HorizontalAlignment="Stretch"
+                               HorizontalContentAlignment="Left"
+                               Padding="10,7"
+                               Margin="0,0,0,4"
+                               Click="SettingsNav_Click"/>
+
                     <ui:Button x:Name="BackgroundNavButton"
                                Tag="Background"
                                Icon="{ui:SymbolIcon ArrowClockwise24}"
@@ -238,6 +249,67 @@
                             </StackPanel>
                         </Border>
 
+                        <Border x:Name="UpdatesSettingsSection"
+                                BorderBrush="#303640"
+                                BorderThickness="0,0,0,0"
+                                Padding="0"
+                                Margin="0"
+                                Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Text="Updates"
+                                           FontSize="26"
+                                           Foreground="White"
+                                           Margin="0,0,0,16"/>
+
+                                <Border BorderBrush="#303640" BorderThickness="0,0,0,1" Padding="0,0,0,16" Margin="0,0,0,16">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Margin="0,0,18,0">
+                                            <TextBlock Text="Include beta releases"
+                                                       Foreground="#F0F2F5"
+                                                       FontWeight="SemiBold"
+                                                       TextWrapping="Wrap"/>
+                                            <TextBlock Text="When enabled, update checks can offer GitHub pre-releases. Turn this off if you only want normal stable releases. &#x0a;&#x0a;NOTE: Stable channel is almost always the way to go unless you are beta testing voluntarily or the developer has personally recommended you to install it."
+                                                       Foreground="#A1A8B3"
+                                                       FontSize="12"
+                                                       TextWrapping="Wrap"
+                                                       Margin="0,4,0,0"/>
+                                        </StackPanel>
+
+                                        <CheckBox x:Name="IncludeBetaUpdatesCheckBox"
+                                                  Grid.Column="1"
+                                                  Click="UpdateSettings_Changed"
+                                                  VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+
+                                <StackPanel>
+                                    <TextBlock Text="Current update channel"
+                                               Foreground="#F0F2F5"
+                                               FontWeight="SemiBold"
+                                               TextWrapping="Wrap"/>
+                                    <TextBlock x:Name="UpdateChannelSummaryText"
+                                               Foreground="#A1A8B3"
+                                               FontSize="12"
+                                               TextWrapping="Wrap"
+                                               Margin="0,4,0,0"/>
+
+                                    <ui:Button x:Name="UpdatesPageCheckUpdatesButton"
+                                               Content="Check now"
+                                               Icon="{ui:SymbolIcon ArrowClockwise24}"
+                                               Appearance="Primary"
+                                               Padding="12,6"
+                                               HorizontalAlignment="Left"
+                                               Margin="0,14,0,0"
+                                               Click="CheckUpdates_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
                         <Border x:Name="BackgroundSettingsSection"
                                 BorderBrush="#303640"
                                 BorderThickness="0,0,0,0"
@@ -310,7 +382,7 @@
 
                             <WrapPanel>
                                 <ui:Button x:Name="AboutCheckUpdatesButton"
-                                           Content="Check updates"
+                                           Content="Check for updates"
                                            Icon="{ui:SymbolIcon ArrowClockwise24}"
                                            Appearance="Primary"
                                            Padding="12,6"

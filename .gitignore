@@ -366,4 +366,5 @@ FodyWeavers.xsd
 bin/
 obj/
 installer/Output/
+Releases/
 .dotnet-cli/

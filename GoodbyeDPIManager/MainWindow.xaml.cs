@@ -7,6 +7,8 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Win32;
+using Velopack;
+using Velopack.Sources;
 using Wpf.Ui.Controls;
 using WinForms = System.Windows.Forms;
 
@@ -16,6 +18,7 @@ namespace GoodbyeDPIManager
     {
         private readonly string serviceName = "GoodbyeDPI";
         private readonly string registryPath = @"HKEY_CURRENT_USER\Software\GoodbyeDPIManager";
+        private const string UpdateRepositoryUrl = "https://github.com/ExQueueSee/GoodbyeDPIManager";
 
         private DispatcherTimer? timer;
 
@@ -29,11 +32,23 @@ namespace GoodbyeDPIManager
             SetupTrayIcon();
             SetupTimer();
             UpdateStatus();
+            Loaded += MainWindow_Loaded;
+
+            if (StartupCheckBox.IsChecked == true)
+            {
+                ManageStartupTask(enable: true, startHidden: HideOnStartupCheckBox.IsChecked == true);
+            }
 
             if (StartServiceCheckBox.IsChecked == true)
             {
                 _ = ExecuteServiceCommandAsync(ServiceControllerStatus.Running);
             }
+        }
+
+        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            Loaded -= MainWindow_Loaded;
+            await CheckForUpdatesAsync(showNoUpdateMessage: false);
         }
 
         private void SetupTrayIcon()
@@ -240,6 +255,9 @@ namespace GoodbyeDPIManager
 
         private async void Start_Click(object sender, RoutedEventArgs e) => await ExecuteServiceCommandAsync(ServiceControllerStatus.Running);
         private async void Stop_Click(object sender, RoutedEventArgs e) => await ExecuteServiceCommandAsync(ServiceControllerStatus.Stopped);
+
+        private async void CheckUpdates_Click(object sender, RoutedEventArgs e) => await CheckForUpdatesAsync(showNoUpdateMessage: true);
+
         private async void Restart_Click(object sender, RoutedEventArgs e)
         {
             var btn = sender as Wpf.Ui.Controls.Button;
@@ -300,6 +318,121 @@ namespace GoodbyeDPIManager
             catch (Exception ex)
             {
                 System.Windows.MessageBox.Show($"Failed to execute command.\nDetails: {ex.Message}", "Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+        }
+
+        private async Task CheckForUpdatesAsync(bool showNoUpdateMessage)
+        {
+            object? originalToolTip = CheckUpdatesButton.ToolTip;
+            bool originalEnabled = CheckUpdatesButton.IsEnabled;
+
+            try
+            {
+                CheckUpdatesButton.IsEnabled = false;
+                CheckUpdatesButton.ToolTip = "Checking for updates";
+                CheckUpdatesButton.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Clock24 };
+
+                UpdateManager updateManager = new(new GithubSource(UpdateRepositoryUrl, "", false));
+
+                if (!updateManager.IsInstalled)
+                {
+                    if (showNoUpdateMessage)
+                    {
+                        System.Windows.MessageBox.Show(
+                            "Update checks will work after this app is installed with the Velopack installer.",
+                            "Updates",
+                            System.Windows.MessageBoxButton.OK,
+                            System.Windows.MessageBoxImage.Information
+                        );
+                    }
+
+                    return;
+                }
+
+                VelopackAsset? pendingUpdate = updateManager.UpdatePendingRestart;
+                if (pendingUpdate != null)
+                {
+                    var restartChoice = System.Windows.MessageBox.Show(
+                        $"An update to GoodbyeDPI Manager v{pendingUpdate.Version} is ready.\n\nRestart now to finish installing it?",
+                        "Update ready",
+                        System.Windows.MessageBoxButton.YesNo,
+                        System.Windows.MessageBoxImage.Information
+                    );
+
+                    if (restartChoice == System.Windows.MessageBoxResult.Yes)
+                    {
+                        updateManager.ApplyUpdatesAndRestart(pendingUpdate);
+                    }
+
+                    return;
+                }
+
+                UpdateInfo? updateInfo = await updateManager.CheckForUpdatesAsync();
+                if (updateInfo == null)
+                {
+                    if (showNoUpdateMessage)
+                    {
+                        System.Windows.MessageBox.Show(
+                            "You are already using the latest version.",
+                            "Updates",
+                            System.Windows.MessageBoxButton.OK,
+                            System.Windows.MessageBoxImage.Information
+                        );
+                    }
+
+                    return;
+                }
+
+                string latestVersion = updateInfo.TargetFullRelease.Version.ToString();
+                var updateChoice = System.Windows.MessageBox.Show(
+                    $"GoodbyeDPI Manager v{latestVersion} is available.\n\nDownload and install it now?",
+                    "Update available",
+                    System.Windows.MessageBoxButton.YesNo,
+                    System.Windows.MessageBoxImage.Information
+                );
+
+                if (updateChoice != System.Windows.MessageBoxResult.Yes)
+                {
+                    return;
+                }
+
+                CheckUpdatesButton.ToolTip = "Downloading update";
+
+                await updateManager.DownloadUpdatesAsync(updateInfo, progress =>
+                {
+                    Dispatcher.Invoke(() => CheckUpdatesButton.ToolTip = $"Downloading {progress}%");
+                });
+
+                System.Windows.MessageBox.Show(
+                    "The update is ready. GoodbyeDPI Manager will restart to finish installing it.",
+                    "Update ready",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information
+                );
+
+                updateManager.ApplyUpdatesAndRestart(updateInfo.TargetFullRelease);
+            }
+            catch (Exception ex)
+            {
+                if (showNoUpdateMessage)
+                {
+                    System.Windows.MessageBox.Show(
+                        $"Failed to check for updates.\nDetails: {ex.Message}",
+                        "Update Error",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Error
+                    );
+                }
+                else
+                {
+                    Debug.WriteLine($"Update check failed: {ex}");
+                }
+            }
+            finally
+            {
+                CheckUpdatesButton.ToolTip = originalToolTip;
+                CheckUpdatesButton.Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.ArrowClockwise24 };
+                CheckUpdatesButton.IsEnabled = originalEnabled;
             }
         }
 

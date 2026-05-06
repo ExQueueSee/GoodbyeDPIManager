@@ -13,7 +13,25 @@
         <ui:TitleBar Title="GoodbyeDPI Manager" Panel.ZIndex="1" />
 
         <Grid x:Name="MainView" Margin="0,35,0,0" Visibility="Visible">
-            <ui:Button Icon="{ui:SymbolIcon Settings24}" Appearance="Transparent" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,10,0,0" Click="OpenSettings_Click"/>
+            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,10,0,0" Panel.ZIndex="1">
+                <ui:Button Icon="{ui:SymbolIcon Settings24}"
+                           Appearance="Transparent"
+                           Width="36"
+                           Height="36"
+                           ToolTip="Settings"
+                           ToolTipService.InitialShowDelay="700"
+                           Click="OpenSettings_Click"/>
+
+                <ui:Button x:Name="CheckUpdatesButton"
+                           Icon="{ui:SymbolIcon ArrowClockwise24}"
+                           Appearance="Transparent"
+                           Width="36"
+                           Height="36"
+                           Margin="0,8,0,0"
+                           ToolTip="Check for updates"
+                           ToolTipService.InitialShowDelay="700"
+                           Click="CheckUpdates_Click"/>
+            </StackPanel>
 
             <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="10,-20,10,0">
                 <TextBlock Text="Service Status" FontSize="14" Foreground="#B0B0B0" HorizontalAlignment="Center" Margin="0,0,0,5"/>

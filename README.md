@@ -11,7 +11,7 @@ Lightweight Windows GUI for managing the GoodbyeDPI background service. This app
 ## Installation
 
 1. Go to the [Releases](../../releases/latest) page.
-2. Download the latest `GoodbyeDPIManager_v*_Setup.exe` file.
+2. Download the latest `GoodbyeDPIManager-win-Setup.exe` file.
 3. Run the installer and follow the standard setup wizard.
 4. Once installed, you can launch **GoodbyeDPI Manager** directly from your Windows Start Menu.
 
@@ -21,7 +21,6 @@ If you want to compile the application yourself, you will need:
 
 * [Visual Studio 2022](https://visualstudio.microsoft.com/)
 * [.NET 10.0 SDK](https://dotnet.microsoft.com/) (or the relevant .NET version the project is currently targeting)
-* [Inno Setup Compiler](https://jrsoftware.org/isdl.php) (only required if you want to build the installer executable)
 
 1. Clone the repository:
    ```powershell
@@ -38,17 +37,19 @@ If you want to create the same kind of release build that is used for the instal
 .\scripts\build-release.ps1
 ```
 
-This publishes the app to `publish/win-x64` and creates the installer under `installer/Output`.
+This publishes the app to `publish/win-x64` and creates the Velopack release files under `Releases`.
 
 ## Releases
 
-The installer is built from the files pushed to GitHub, not from whatever random local publish folder happens to exist on my computer. When a new version tag such as `v1.3` is pushed, GitHub Actions builds the app, compiles the Inno Setup installer, and attaches the setup executable to the GitHub Release.
+The installer and update packages are built from the files pushed to GitHub, not from whatever random local publish folder happens to exist on my computer. When a new version tag such as `v1.4` is pushed, GitHub Actions builds the app, creates Velopack packages, and attaches the setup/update files to the GitHub Release.
+
+Velopack is also what lets the app check GitHub Releases and tell the user when a newer version is available. If the user wants the update right then, the app can download and apply it without making them hunt down the release page manually.
 
 For a new release, the general idea is:
 
 ```powershell
-git tag v1.3
-git push origin v1.3
+git tag v1.4
+git push origin v1.4
 ```
 
 ## Contributing

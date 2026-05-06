@@ -2,8 +2,10 @@ param(
     [string]$Configuration = "Release",
     [string]$Runtime = "win-x64",
     [string]$Version,
-    [string]$InnoSetupPath,
-    [switch]$SkipInstaller
+    [string]$OutputDir = "Releases",
+    [string]$Channel = "win",
+    [switch]$PreserveReleaseOutput,
+    [switch]$SkipPackage
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,40 +24,39 @@ function Invoke-CommandChecked {
     }
 }
 
-function Resolve-InnoSetupCompiler {
-    param([string]$CandidatePath)
+function ConvertTo-SemVer {
+    param([string]$InputVersion)
 
-    if ($CandidatePath) {
-        if (Test-Path -LiteralPath $CandidatePath) {
-            return (Resolve-Path -LiteralPath $CandidatePath).Path
-        }
-
-        throw "Inno Setup compiler was not found at '$CandidatePath'."
+    if ($InputVersion -match '^\d+\.\d+$') {
+        return "$InputVersion.0"
     }
 
-    $fromPath = Get-Command "ISCC.exe" -ErrorAction SilentlyContinue
-    if ($fromPath) {
-        return $fromPath.Source
+    if ($InputVersion -match '^\d+\.\d+\.\d+([\-+][0-9A-Za-z\-.+]+)?$') {
+        return $InputVersion
     }
 
-    $defaultPaths = @(
-        "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-        "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+    throw "Version '$InputVersion' is not compatible with Velopack. Use v1.4 tags and project versions like 1.4, or package versions like 1.4.0."
+}
+
+function Assert-PathInsideRepo {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
     )
 
-    foreach ($path in $defaultPaths) {
-        if ($path -and (Test-Path -LiteralPath $path)) {
-            return (Resolve-Path -LiteralPath $path).Path
-        }
-    }
+    $fullRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/')
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
 
-    throw "Inno Setup compiler was not found. Install Inno Setup 6 or pass -InnoSetupPath 'C:\Path\To\ISCC.exe'."
+    if (-not $fullPath.StartsWith($fullRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to operate outside the repository: $fullPath"
+    }
 }
 
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
 $projectPath = Join-Path $repoRoot "GoodbyeDPIManager\GoodbyeDPIManager.csproj"
-$installerScript = Join-Path $repoRoot "installer\GoodbyeDPIManager.iss"
 $publishDir = Join-Path $repoRoot "publish\$Runtime"
+$releaseDir = Join-Path $repoRoot $OutputDir
+$iconPath = Join-Path $repoRoot "GoodbyeDPIManager\appicon.ico"
 
 if (-not $Version) {
     [xml]$projectXml = Get-Content -Raw -LiteralPath $projectPath
@@ -69,13 +70,24 @@ if (-not $Version) {
     throw "Could not determine the app version from '$projectPath'."
 }
 
+$packageVersion = ConvertTo-SemVer $Version
+
 Write-Host "Building GoodbyeDPI Manager $Version for $Runtime..."
+Write-Host "Velopack package version: $packageVersion"
+
+Assert-PathInsideRepo $repoRoot $publishDir
+Assert-PathInsideRepo $repoRoot $releaseDir
 
 if (Test-Path -LiteralPath $publishDir) {
     Remove-Item -LiteralPath $publishDir -Recurse -Force
 }
 
+if ((Test-Path -LiteralPath $releaseDir) -and -not $PreserveReleaseOutput) {
+    Remove-Item -LiteralPath $releaseDir -Recurse -Force
+}
+
 New-Item -ItemType Directory -Force -Path $publishDir | Out-Null
+New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
 
 Invoke-CommandChecked "dotnet" @("restore", $projectPath)
 Invoke-CommandChecked "dotnet" @(
@@ -89,13 +101,34 @@ Invoke-CommandChecked "dotnet" @(
     "--output", $publishDir
 )
 
-if ($SkipInstaller) {
+if ($SkipPackage) {
     Write-Host "Publish output created at: $publishDir"
     return
 }
 
-$isccPath = Resolve-InnoSetupCompiler $InnoSetupPath
-$versionInfo = "{0}.0.0" -f $Version
-Invoke-CommandChecked $isccPath @("/DMyAppVersion=$Version", "/DMyAppVersionInfo=$versionInfo", $installerScript)
+Invoke-CommandChecked "dotnet" @("tool", "restore")
 
-Write-Host "Installer output created under: $(Join-Path $repoRoot 'installer\Output')"
+$previousRollForward = $env:DOTNET_ROLL_FORWARD
+$env:DOTNET_ROLL_FORWARD = "Major"
+
+try {
+    Invoke-CommandChecked "dotnet" @(
+        "tool", "run", "vpk", "--",
+        "pack",
+        "--packId", "GoodbyeDPIManager",
+        "--packVersion", $packageVersion,
+        "--packDir", $publishDir,
+        "--mainExe", "GoodbyeDPIManager.exe",
+        "--packTitle", "GoodbyeDPI Manager",
+        "--packAuthors", "Ataberk Tekin",
+        "--outputDir", $releaseDir,
+        "--runtime", $Runtime,
+        "--channel", $Channel,
+        "--icon", $iconPath
+    )
+}
+finally {
+    $env:DOTNET_ROLL_FORWARD = $previousRollForward
+}
+
+Write-Host "Velopack release output created under: $releaseDir"
